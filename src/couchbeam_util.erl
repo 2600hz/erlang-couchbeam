@@ -288,7 +288,3 @@ proxy_token(Secret,UserName) ->
 -ifdef(USE_CRYPTO_MAC).
 hmac(Alg, Key, Data) ->
    crypto:mac(hmac, Alg, Key, Data).
--else.
-hmac(Alg, Key, Data) ->
-   crypto:hmac(Alg, Key, Data).
--endif.

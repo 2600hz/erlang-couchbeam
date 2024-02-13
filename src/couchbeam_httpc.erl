@@ -39,28 +39,61 @@ json_body(Ref) ->
             Error
     end.
 
-make_headers(Method, Url, Headers, Options) ->
-    Application =
-        case get('kz_application') of
-            'undefined' ->
-                case application:get_application() of
-                    'undefined' -> 'undefined';
-                    {'ok', App} -> App
-                end;
-            App -> App
-        end,
-    Headers1 = case couchbeam_util:get_value(<<"Accept">>, Headers) of
-                   undefined ->
-                       [{<<"X-Kazoo-Application">>, kz_term:to_binary(Application)}
-                       ,{<<"Accept">>, <<"application/json, */*;q=0.9">>}
-                        | Headers
-                       ];
-                   _ ->
-                       [{<<"X-Kazoo-Application">>, kz_term:to_binary(Application)} | Headers]
-    end,
-   {Headers2, Options1} = maybe_oauth_header(Method, Url, Headers1, Options),
-   maybe_proxyauth_header(Headers2, Options1).
+make_header_accept(Headers) ->
+    case couchbeam_util:get_value(<<"Accept">>, Headers) of
+        undefined -> [{<<"Accept">>, <<"application/json, */*;q=0.9">>} | Headers];
+        _ -> Headers
+    end.
 
+make_headers(Headers, Options) ->
+    Funs = [fun make_header_accept/1
+           ,fun make_kazoo_headers/1
+           ],
+    NewHeaders = lists:foldl(fun(Fun, Acc) -> Fun(Acc) end, Headers, Funs),
+    {filter_undefined_headers(NewHeaders), Options}.
+
+filter_undefined_headers(Headers) ->
+    lists:filter(fun({_, undefined}) -> false;
+                    (_) -> true
+                 end, Headers).
+
+make_headers(Method, Url, Headers, Options) ->
+   {Headers1, Options1} = make_headers(Headers, Options),
+   {Headers2, Options2} = maybe_oauth_header(Method, Url, Headers1, Options1),
+   maybe_proxyauth_header(Headers2, Options2).
+
+get_kz_application() ->
+    case erlang:get(kz_application) of
+        undefined -> application:get_application();
+        App -> {ok, App}
+    end.
+
+kz_application() ->
+    case get_kz_application() of
+        {ok, App} -> App;
+        _Other -> undefined
+    end.
+
+get_kz_log_id() ->
+    case kz_log:get_callid() of
+        <<"00000000000">> -> undefined;
+        Other -> Other
+    end.
+
+kz_log_id() ->
+    get_kz_log_id().
+
+make_kazoo_headers(Headers) ->
+    HeaderFuns = [{<<"X-Kazoo-Application">>, fun kz_application/0}
+                 ,{<<"X-Kazoo-Log-ID">>, fun kz_log_id/0}
+                 ],
+    lists:foldl(fun make_kazoo_header/2, Headers, HeaderFuns).
+
+make_kazoo_header({Header, Fun}, Headers) ->
+    case Fun() of
+        undefined -> Headers;
+        Value -> [{Header, kz_term:to_binary(Value)} | Headers]
+    end.
 
 maybe_oauth_header(Method, Url, Headers, Options) ->
     case couchbeam_util:get_value(oauth, Options) of

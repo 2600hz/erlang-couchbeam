@@ -42,6 +42,7 @@ decode(D) ->
             throw({invalid_json, badarg})
     end.
 
+-ifndef('WITH_JIFFY').
 pre_encode({[]}) ->
     [{}];
 pre_encode({PropList}) ->
@@ -60,6 +61,7 @@ pre_encode(Atom) when is_atom(Atom) ->
     erlang:atom_to_binary(Atom, utf8);
 pre_encode(Term) when is_integer(Term); is_float(Term); is_binary(Term) ->
     Term.
+-endif.
 
 post_decode({[{}]}) ->
     {[]};
