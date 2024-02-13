@@ -327,10 +327,14 @@ count(Db, ViewName, Options)->
 
     %% make the request
     make_view(Db, ViewName, Options1, fun(Args, Url) ->
-                                              case view_request(Db, Url, Args) of
-                                                  {ok, _, _, Ref} ->
-                                                      {Props} = couchbeam_httpc:json_body(Ref),
-                                                      couchbeam_util:get_value(<<"total_rows">>, Props);
+                case view_request(Db, Url, Args) of
+                    {ok, _, _, Ref} ->
+                        {Props} = couchbeam_httpc:json_body(Ref),
+                        couchbeam_util:get_value(<<"total_rows">>, Props);
+                    Error ->
+                        Error
+                end
+    end).
 
 -spec first(Db::db()) -> {ok, Row::ejson_object()} | {error, term()}.
 first(Db) ->
