@@ -52,12 +52,23 @@ start_link(Owner, StreamRef, {Db, Url, Args}, StreamOptions) ->
                                                {Db, Url, Args},
                                                StreamOptions]).
 
+kz_application(Pid, Options) ->
+    case proplists:get_value(kz_application, Options, undefined) of
+        undefined -> application:get_application(Pid);
+        App -> {ok, App}
+    end.
+
 init_stream(Parent, Owner, StreamRef, {_Db, _Url, _Args}=Req,
             StreamOptions) ->
 
-    _ = case application:get_application(Owner) of
-            'undefined' -> 'ok';
-            {'ok', Application} -> put('kz_application', Application)
+    _ = case kz_application(Owner, StreamOptions) of
+            {ok, App} -> erlang:put(kz_application, App);
+            _Other -> ok
+        end,
+
+    _ = case proplists:get_value(kz_log_id, StreamOptions, undefined) of
+            undefined -> ok;
+            LogId -> kz_log:put_callid(LogId)
         end,
 
     Async = proplists:get_value(async, StreamOptions, normal),
