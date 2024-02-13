@@ -228,13 +228,16 @@ stream(Db, ViewName) ->
 %% used to disctint all changes from this pid. ViewPid is the pid of
 %% the view loop process. Can be used to monitor it or kill it
 %% when needed.</p>
-stream(Db, ViewName, Options) ->
-    {To, Options1} = case proplists:get_value(stream_to, Options) of
+stream(Db, ViewName, Options0) ->
+    {To, Options1} = case proplists:get_value(stream_to, Options0) of
                          undefined ->
-                             {self(), Options};
+                             {self(), Options0};
                          Pid ->
-                             {Pid, proplists:delete(stream_to, Options)}
+                             {Pid, proplists:delete(stream_to, Options0)}
                      end,
+
+    Options = view_options(Options0),
+
     make_view(Db, ViewName, Options1, fun(Args, Url) ->
                                               Ref = make_ref(),
                                               Req = {Db, Url, Args},
@@ -249,6 +252,35 @@ stream(Db, ViewName, Options) ->
                                               end
                                       end).
 
+view_options(Options) ->
+    Funs = [fun kz_log_id/0
+           ,fun kz_application/0
+           ],
+    lists:foldl(fun view_options_fold/2, Options, Funs).
+
+view_options_fold(Fun, Acc) ->
+    case Fun() of
+        undefined -> Acc;
+        Value -> [Value | Acc]
+    end.
+
+kz_log_id() ->
+    case kz_log:get_callid() of
+        <<"00000000000">> -> undefined;
+        LogId -> {kz_log_id, LogId}
+    end.
+
+kz_application() ->
+    case get_kz_application() of
+        {ok, App} -> {kz_application, App};
+        _Other -> undefined
+    end.
+
+get_kz_application() ->
+    case erlang:get(kz_application) of
+        undefined -> application:get_application();
+        App -> {ok, App}
+    end.
 
 cancel_stream(Ref) ->
     with_view_stream(Ref, fun(Pid) ->
@@ -606,7 +638,6 @@ with_view_stream(Ref, Fun) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--include_lib("kernel/include/file.hrl").
 
 
 clean_dbs() ->
