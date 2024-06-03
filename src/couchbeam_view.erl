@@ -306,16 +306,16 @@ count(Db, ViewName, Options)->
 
     %% make the request
     make_view(Db, ViewName, Options1, fun(Args, Url) ->
-                case view_request(Db, Url, Args) of
-                    {ok, _, _, Ref} ->
-                        {Props} = couchbeam_httpc:json_body(Ref),
-                        couchbeam_util:get_value(<<"total_rows">>, Props);
-                    Error ->
-                        Error
-                end
-    end).
+                                              case view_request(Db, Url, Args) of
+                                                  {ok, _, _, Ref} ->
+                                                      {Props} = couchbeam_httpc:json_body(Ref),
+                                                      couchbeam_util:get_value(<<"total_rows">>, Props);
+                                                  Error ->
+                                                      Error
+                                              end
+                                      end).
 
-                                                  -spec first(Db::db()) -> {ok, Row::ejson_object()} | {error, term()}.
+-spec first(Db::db()) -> {ok, Row::ejson_object()} | {error, term()}.
 first(Db) ->
     first(Db, 'all_docs', []).
 
@@ -566,7 +566,7 @@ fold_view_results(Ref, Fun, Acc) ->
             {error, Acc, Error}
     end.
 
--spec collect_view_results(reference(), Rows::list(ejson_object())) ->
+-spec collect_view_results(reference(), Rows::list(ejson_object()), timeout()) ->
           {ok, Rows::list(ejson_object())} |
           {error, term()} |
           {error, term(), Rows::list(ejson_object())}.
@@ -588,20 +588,17 @@ collect_view_results(Ref, Acc, Timeout) ->
             {error, timeout}
     end.
 
-view_request(#db{options=Opts}, Url, Args) ->
-    case Args#view_query_args.method of
-        get ->
-            couchbeam_httpc:db_request(get, Url, [], <<>>,
-                                       Opts, [200]);
-        post ->
-            Body = couchbeam_ejson:encode(
-                     {[{<<"keys">>, Args#view_query_args.keys}]}
-                    ),
+view_request(#db{options=Opts}, Url, #view_query_args{method=get}=Args) ->
+    couchbeam_httpc:db_request(get, Url, [], <<>>,
+                               Opts, [200]);
+view_request(#db{options=Opts}, Url, #view_query_args{method=post, keys=Keys}=Args) ->
+    Body = couchbeam_ejson:encode(
+             {[{<<"keys">>, Keys}]}
+            ),
 
-            Hdrs = [{<<"Content-Type">>, <<"application/json">>}],
-            couchbeam_httpc:db_request(post, Url, Hdrs, Body,
-                                       Opts, [200])
-    end.
+    Hdrs = [{<<"Content-Type">>, <<"application/json">>}],
+    couchbeam_httpc:db_request(post, Url, Hdrs, Body,
+                               Opts, [200]).
 
 with_view_stream(Ref, Fun) ->
     case ets:lookup(couchbeam_view_streams, Ref) of
