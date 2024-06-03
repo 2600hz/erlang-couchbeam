@@ -588,10 +588,10 @@ collect_view_results(Ref, Acc, Timeout) ->
             {error, timeout}
     end.
 
-view_request(#db{options=Opts}, Url, #view_query_args{method=get}=Args) ->
+view_request(#db{options=Opts}, Url, #view_query_args{method=get}) ->
     couchbeam_httpc:db_request(get, Url, [], <<>>,
                                Opts, [200]);
-view_request(#db{options=Opts}, Url, #view_query_args{method=post, keys=Keys}=Args) ->
+view_request(#db{options=Opts}, Url, #view_query_args{method=post, keys=Keys}) ->
     Body = couchbeam_ejson:encode(
              {[{<<"keys">>, Keys}]}
             ),
