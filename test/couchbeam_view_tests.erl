@@ -7,6 +7,7 @@ fetch_mode_test_() ->
     {foreach, fun setup/0, fun cleanup/1,
      [fun default_fetch_is_synchronous/0,
       fun async_fetch_is_opt_in/0,
+      fun asynchronous_partial_error/0,
       fun synchronous_request_error/0]}.
 
 setup() ->
@@ -54,6 +55,18 @@ synchronous_request_error() ->
                 fun(get, _, [], <<>>, [], [200]) -> {error, not_found} end),
     ?assertEqual({error, not_found}, couchbeam_view:fetch(#db{}, all_docs, [])),
     ?assertEqual(0, meck:num_calls(couchbeam_view_stream, start_link, '_')).
+
+asynchronous_partial_error() ->
+    meck:expect(couchbeam_view_stream, start_link,
+                fun(To, Ref, _Request, _Options) ->
+                    {ok, spawn_link(fun() ->
+                        To ! {Ref, {row, row()}},
+                        To ! {Ref, {error, timeout}},
+                        receive stop -> ok end
+                    end)}
+                end),
+    ?assertEqual({error, timeout, [row()]},
+                 couchbeam_view:fetch(#db{}, all_docs, [async_query])).
 
 row() ->
     {[{<<"id">>, <<"account">>}, {<<"key">>, <<"account">>}, {<<"value">>, 1}]}.

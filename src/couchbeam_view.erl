@@ -50,7 +50,8 @@ fetch(Db) ->
 
 -spec fetch(Db::db(), ViewName::'all_docs' | {DesignName::design_name(),
                                               ViewName::view_name()})
-           -> {ok, Rows::list(ejson_object())} | {error, term()}.
+           -> {ok, Rows::list(ejson_object())} | {error, term()} |
+              {error, term(), Rows::list(ejson_object())}.
 %% @equiv fetch(Db, ViewName, [])
 fetch(Db, ViewName) ->
     fetch(Db, ViewName,[]).
@@ -58,7 +59,8 @@ fetch(Db, ViewName) ->
 
 -spec fetch(Db::db(), ViewName::'all_docs' | {DesignName::design_name(),
                                               ViewName::view_name()}, Options::view_options())
-           -> {ok, Rows::list(ejson_object())} | {error, term()}.
+           -> {ok, Rows::list(ejson_object())} | {error, term()} |
+              {error, term(), Rows::list(ejson_object())}.
 %% @doc Collect view results
 %%  <p>Db: a db record</p>
 %%  <p>ViewName: <code>'all_docs'</code> to get all docs or <code>{DesignName,
@@ -77,7 +79,7 @@ fetch(Db, ViewName) ->
 %%    | async_query</pre>
 %% <p>See {@link couchbeam_view:stream/4} for more information about
 %% options.</p>
-%% <p>Return: {ok, Rows} or {error, Error}</p>
+%% <p>Return: {ok, Rows}, {error, Error}, or {error, Error, PartialRows}</p>
 fetch(Db, ViewName, Options) ->
     case proplists:is_defined(async_query, Options) of
         true -> fetch_async(Db, ViewName, Options);
